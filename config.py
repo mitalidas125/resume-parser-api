@@ -1,16 +1,15 @@
 import os
 
 class Config:
-    # Database config (baad mein fill karenge)
+    # MySQL config
     MYSQL_HOST = 'localhost'
     MYSQL_USER = 'root'
-    MYSQL_PASSWORD = ''
+    MYSQL_PASSWORD = 'Mitali526@'  # ⚠️ apna password daalo
     MYSQL_DB = 'resume_parser'
     
     # File upload config
     UPLOAD_FOLDER = 'uploads'
-    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+    MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB
     ALLOWED_EXTENSIONS = {'pdf'}
     
-    # Secret key
     SECRET_KEY = os.urandom(24)
