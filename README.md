@@ -29,7 +29,7 @@ A REST API built with Flask and MySQL that parses resumes and matches them with 
 ## Setup Instructions
 
 1. Clone the repository
-   git clone https://github.com/YOUR_USERNAME/resume-parser-api.git
+   git clone https://github.com/mitalidas125/resume-parser-api.git
 
 2. Create virtual environment
    python -m venv venv
