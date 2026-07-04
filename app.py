@@ -14,7 +14,7 @@ mysql = MySQL(app)
 # spaCy model load karo
 nlp = spacy.load("en_core_web_sm")
 
-# Skills list — jो bhi resume mein mile extract ho
+# Skills list
 SKILLS_LIST = [
     "python", "flask", "django", "mysql", "sql", "javascript",
     "html", "css", "git", "github", "rest api", "api",
@@ -89,6 +89,18 @@ def upload_resume():
         # Skills extract karo
         skills = extract_skills(text)
 
+        # Database mein save karo
+        try:
+            cur = mysql.connection.cursor()
+            cur.execute(
+                "INSERT INTO resumes (name, skills) VALUES (%s, %s)",
+                ('Unknown', ','.join(skills))
+            )
+            mysql.connection.commit()
+            cur.close()
+        except Exception as e:
+            print("DB Error:", e)
+
         return jsonify({
             "message": "Resume uploaded and parsed!",
             "filename": filename,
@@ -97,6 +109,31 @@ def upload_resume():
         }), 201
 
     return jsonify({"error": "Only PDF files allowed"}), 400
+
+@app.route('/jobs', methods=['GET'])
+def get_jobs():
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM jobs")
+        jobs = cur.fetchall()
+        cur.close()
+
+        jobs_list = []
+        for job in jobs:
+            jobs_list.append({
+                "id": job[0],
+                "title": job[1],
+                "company": job[2],
+                "required_skills": job[3].split(','),
+                "created_at": str(job[4])
+            })
+
+        return jsonify({
+            "total_jobs": len(jobs_list),
+            "jobs": jobs_list
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
