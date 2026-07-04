@@ -11,9 +11,7 @@ app.config.from_object(Config)
 
 mysql = MySQL(app)
 
-
 nlp = spacy.load("en_core_web_sm")
-
 
 SKILLS_LIST = [
     "python", "flask", "django", "mysql", "sql", "javascript",
@@ -83,13 +81,9 @@ def upload_resume():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        
         text = extract_text_from_pdf(filepath)
-
-        
         skills = extract_skills(text)
 
-        
         try:
             cur = mysql.connection.cursor()
             cur.execute(
@@ -134,6 +128,50 @@ def get_jobs():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/match', methods=['POST'])
+def match_jobs():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file found"}), 400
+
+    file = request.files['file']
+
+    if file and allowed_file(file.filename):
+        filename = secure_filename(file.filename)
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(filepath)
+
+        text = extract_text_from_pdf(filepath)
+        resume_skills = extract_skills(text)
+
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT * FROM jobs")
+        jobs = cur.fetchall()
+        cur.close()
+
+        matched_jobs = []
+        for job in jobs:
+            job_skills = job[3].split(',')
+            matched = [s for s in resume_skills if s in job_skills]
+            score = round((len(matched) / len(job_skills)) * 100, 2)
+
+            matched_jobs.append({
+                "title": job[1],
+                "company": job[2],
+                "required_skills": job_skills,
+                "matched_skills": matched,
+                "match_score": f"{score}%"
+            })
+
+        matched_jobs = sorted(matched_jobs, key=lambda x: float(x['match_score'].replace('%', '')), reverse=True)
+
+        return jsonify({
+            "resume_skills": resume_skills,
+            "total_jobs_checked": len(matched_jobs),
+            "job_matches": matched_jobs
+        }), 200
+
+    return jsonify({"error": "Only PDF files allowed"}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)
