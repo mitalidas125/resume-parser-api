@@ -26,20 +26,38 @@ def allowed_file(filename):
            filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 def extract_text_from_pdf(filepath):
-    text = ""
-    with open(filepath, 'rb') as file:
-        reader = PyPDF2.PdfReader(file)
-        for page in reader.pages:
-            text += page.extract_text()
-    return text
+    try:
+        text = ""
+        with open(filepath, 'rb') as file:
+            reader = PyPDF2.PdfReader(file)
+            for page in reader.pages:
+                text += page.extract_text()
+        return text
+    except Exception as e:
+        raise ValueError(f"PDF read error: {str(e)}")
 
 def extract_skills(text):
-    text_lower = text.lower()
-    found_skills = []
-    for skill in SKILLS_LIST:
-        if skill in text_lower:
-            found_skills.append(skill)
-    return found_skills
+    try:
+        text_lower = text.lower()
+        found_skills = []
+        for skill in SKILLS_LIST:
+            if skill in text_lower:
+                found_skills.append(skill)
+        return found_skills
+    except Exception as e:
+        raise ValueError(f"Skills extract error: {str(e)}")
+
+@app.errorhandler(404)
+def not_found(e):
+    return jsonify({"error": "Route not found"}), 404
+
+@app.errorhandler(500)
+def server_error(e):
+    return jsonify({"error": "Internal server error"}), 500
+
+@app.errorhandler(413)
+def file_too_large(e):
+    return jsonify({"error": "File too large! Max size 16MB"}), 413
 
 @app.route('/')
 def home():
@@ -64,19 +82,22 @@ def test_db():
             "database": data[0]
         })
     except Exception as e:
-        return jsonify({"status": "Error", "message": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/upload', methods=['POST'])
 def upload_resume():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file found"}), 400
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file found"}), 400
 
-    file = request.files['file']
+        file = request.files['file']
 
-    if file.filename == '':
-        return jsonify({"error": "No file selected"}), 400
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
 
-    if file and allowed_file(file.filename):
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Only PDF files allowed"}), 400
+
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
@@ -84,16 +105,13 @@ def upload_resume():
         text = extract_text_from_pdf(filepath)
         skills = extract_skills(text)
 
-        try:
-            cur = mysql.connection.cursor()
-            cur.execute(
-                "INSERT INTO resumes (name, skills) VALUES (%s, %s)",
-                ('Unknown', ','.join(skills))
-            )
-            mysql.connection.commit()
-            cur.close()
-        except Exception as e:
-            print("DB Error:", e)
+        cur = mysql.connection.cursor()
+        cur.execute(
+            "INSERT INTO resumes (name, skills) VALUES (%s, %s)",
+            ('Unknown', ','.join(skills))
+        )
+        mysql.connection.commit()
+        cur.close()
 
         return jsonify({
             "message": "Resume uploaded and parsed!",
@@ -102,7 +120,10 @@ def upload_resume():
             "total_skills_found": len(skills)
         }), 201
 
-    return jsonify({"error": "Only PDF files allowed"}), 400
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Something went wrong", "details": str(e)}), 500
 
 @app.route('/jobs', methods=['GET'])
 def get_jobs():
@@ -127,16 +148,22 @@ def get_jobs():
             "jobs": jobs_list
         })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": "Could not fetch jobs", "details": str(e)}), 500
 
 @app.route('/match', methods=['POST'])
 def match_jobs():
-    if 'file' not in request.files:
-        return jsonify({"error": "No file found"}), 400
+    try:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file found"}), 400
 
-    file = request.files['file']
+        file = request.files['file']
 
-    if file and allowed_file(file.filename):
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Only PDF files allowed"}), 400
+
         filename = secure_filename(file.filename)
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
@@ -171,7 +198,10 @@ def match_jobs():
             "job_matches": matched_jobs
         }), 200
 
-    return jsonify({"error": "Only PDF files allowed"}), 400
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        return jsonify({"error": "Something went wrong", "details": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
