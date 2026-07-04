@@ -11,10 +11,10 @@ app.config.from_object(Config)
 
 mysql = MySQL(app)
 
-# spaCy model load karo
+
 nlp = spacy.load("en_core_web_sm")
 
-# Skills list
+
 SKILLS_LIST = [
     "python", "flask", "django", "mysql", "sql", "javascript",
     "html", "css", "git", "github", "rest api", "api",
@@ -83,13 +83,13 @@ def upload_resume():
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(filepath)
 
-        # Text extract karo
+        
         text = extract_text_from_pdf(filepath)
 
-        # Skills extract karo
+        
         skills = extract_skills(text)
 
-        # Database mein save karo
+        
         try:
             cur = mysql.connection.cursor()
             cur.execute(
