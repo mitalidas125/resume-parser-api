@@ -1,3 +1,6 @@
+   ![Python](https://img.shields.io/badge/Python-3.10-blue)
+   ![Flask](https://img.shields.io/badge/Flask-Framework-black)
+
 # Resume Parser & Job Matcher API
 
 A REST API built with Flask and MySQL that parses resumes and matches them with job listings based on skills.
